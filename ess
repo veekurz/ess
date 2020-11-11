@@ -1,0 +1,221 @@
+#!/bin/bash
+criteria=0.026255 #"0.026255" #kJ/mol 
+
+###################REMOVE_OLD_OUTPUT-FILES#########################
+rm -f E_sorted.txt E_sorted_first_freq_NEGATIVE.txt E_sorted_local_min.txt
+###################REMOVE_OLD_OUTPUT-FILES#########################
+
+###################SORT_BY_ENERGY_SCRIPT#########################
+ls *.log | tr '.' ' ' | awk '{print $1}' > name
+
+for i in $(cat name | awk '{print $1}');do if grep "Normal ter" $i.log ;
+then grep -H "Frequencies --    " $i.log | head -1 | awk '{print $1,$2,$3,$4,$5,$6}'; 
+grep -H Done $i.log| tail -1 | awk '{print $1,$4,$5,$6}'; 
+grep -H "Sum of elec" $i.log | tail -2 | awk '{print $1,$2,$3,$4,$5,$6,$7,$8,$9}';
+grep -H "Zero-point correction" $i.log | tail -4 | awk '{print $1,$2,$3,$4,$5}'; 
+grep -H "Thermal correction" $i.log | tail -2 | awk '{print $1,$2,$3,$4,$5,$6,$7,$8}'; 
+grep -H Done $i.log -A 2 | tail -1 | awk '{print $1,$8,$9}'; 
+fi;done > Ausschreiben_wichtig.txt
+
+for i in $(cat name | awk '{print $1}');do if grep "Normal ter" $i.log ;
+then 
+grep -H "Normal ter" $i.log |tail -1 | awk '{print $1}' | tail -1 >> $i.outdata;			     #NAME 
+grep "Zero-point correction" $i.log | tail -4 | awk '{print $3}' | tail -1 >> $i.outdata;		#ZPE1 
+grep "Thermal correction" $i.log | tail -2 |head -1 | awk '{print $5}'| tail -1 >> $i.outdata; 	#δH.1 
+deltaH1=`grep "Thermal correction" $i.log | tail -2 |head -1 | awk '{print $5}'`| tail -1 | tail -1      	#δH.1 VAR
+echo "Thermal correction δH.1 = $deltaH1 for $i.log" | tail -1	| tail -1				                 #δH.1 ECHO
+grep "Thermal correction" $i.log | tail -1 | awk '{print $7}'| tail -1 >> $i.outdata;	      	#δG.1 
+grep Done $i.log| tail -1 | awk '{print $5}'| tail -1 >> $i.outdata;				            #energy 
+Etot=`grep Done $i.log| tail -1 | awk '{print $5}'`					                            #energy VAR
+echo "Total energy Etot = $Etot for $i.log"						                               #energy	ECHO
+grep "Done" $i.log -A 2 | tail -1 | awk '{print $8}' | tail -1>> $i.outdata;			      #S_quadrat  
+grep "Frequencies --" $i.log | head -1 | awk '{print $3}' | tail -1 >> $i.outdata;		        #lowest_freq
+Etot_kJ_pro_mol=`echo "2625.5 * $Etot" | bc -l `; echo $Etot_kJ_pro_mol >> $i.outdata;
+echo "Total energy Etot = $Etot for $i.log";						#E energy ECHO
+fi;done
+
+for i in $(cat name | awk '{print $1}');do cat $i.outdata | tr '\n' ','|sed -e 's/,/, /g' -e 's/, $/\n/' > $i.outdata_form
+sed "s/, / /g"  $i.outdata_form > $i.outdata_form2
+sed "s/.log:/""/g"  $i.outdata_form2 > $i.outdata_form3
+cat *.outdata_form3 > pretabelle_out.txt
+sort -k8 -n pretabelle_out.txt > tabelle_out.txt
+rm -f pretabelle_out.txt
+done
+
+echo "" >> space_enter
+cat Ausschreiben_wichtig.txt tabelle_out.txt space_enter > Ausschreiben.txt
+cat tabelle_out.txt
+rm -f space_enter
+rm -f *.outdata *.outdata_form *.outdata_form2 *.outdata_form3 Ausschreiben_wichtig.txt name 
+rm -f Ntabelle_out.txt 		#update
+cat -n tabelle_out.txt > Ntabelle_out.txt 
+###################EXTRACT_DATA#########################
+
+
+###################SORT_BY_ENERGY#########################
+rm E_sorted.txt	#update
+rm E_sorted_	#update
+rm E_sorted_f	#update
+
+#First_Conformer
+E_E_local_min=`cat Ntabelle_out.txt | awk '{print $9}'| head -n 1 | tail -n 1`;	echo "E_E_local_min = $E_E_local_min"
+cat Ntabelle_out.txt | head -n 1 | tail -n 1  >> E_sorted_
+echo "
+#######################################
+Searching_for_conformers:
+diff_E_conf = E_next_conf - E_E_local_min
+or
+diff_E_conf = E_next_conf - "$E_E_local_min"
+#######################################
+"
+for line in $(cat Ntabelle_out.txt | awk '{print $1}');do 					#echo "$line"  
+next_line=`echo "1 + $line" | bc -l `; 								echo "Next molecule line = $next_line" 
+E_next_conf=`cat Ntabelle_out.txt | awk '{print $9}'| head -n $next_line | tail -n 1`; 	#echo "E_next_conf = $E_next_conf"
+diff_E_conf=`echo "$E_next_conf - $E_E_local_min" | bc -l `; 					echo "diff_E_conf = $diff_E_conf"
+if [ $(echo "$diff_E_conf < $criteria" | bc) -eq 0 ]; then
+echo "yes"
+E_E_local_min=`echo $E_next_conf`
+E_E_local_min_line=`echo $next_line`
+cat Ntabelle_out.txt | head -n $E_E_local_min_line | tail -n 1 >> E_sorted_
+else
+echo "no"
+fi;done
+cat E_sorted_ | awk '{print $2,$3,$4,$5,$6,$7,$8}' > E_sorted.txt
+cat E_sorted_ 
+###################SORT_BY_ENERGY#########################
+
+echo "
+Rel. ΔE sorted molecules:
+Filename      ZPE1     δH.1     δG.1      Etot        <S2>    1-st frew
+"
+
+echo "
+
+" >> space_enter
+
+##################1-st_FREQ_TEST#####################
+#We need new numeration
+rm E_sorted_new #update
+cat -n E_sorted_ > E_sorted_new
+rm E_sorted_first_freq_NEGATIVE.txt  #update
+rm E_sorted_local_min #update
+
+for line in $(cat E_sorted_new | awk '{print $1}')
+do 		
+echo "line #"$line""
+first_freq=`cat E_sorted_ | head -n $line | tail -n 1 | awk '{print $8}'`; 	echo "first_freq = $first_freq"
+if [ $(echo "$first_freq < 0" | bc) -eq 1 ]; then
+echo "yes first_freq < 0"
+cat E_sorted_ | head -n $line | tail -n 1| awk '{print $2,$3,$4,$5,$6,$7,$8}' >> E_sorted_first_freq_NEGATIVE.txt 
+else
+echo "no first_freq > 0"
+cat E_sorted_ | head -n $line | tail -n 1| awk '{print $2,$3,$4,$5,$6,$7,$8}' >> E_sorted_local_min.txt
+fi;done
+##################1-st_FREQ_TEST#####################
+
+##################SAVE_LOCAL_MIN#####################
+LaunchDir=$PWD 
+echo $LaunchDir
+rm $LaunchDir/E_local_min		#update
+mkdir $LaunchDir/E_local_min
+for i in $(cat E_sorted_local_min.txt | awk '{print $1}')
+do 
+cp $LaunchDir/$i.log $LaunchDir/E_local_min/
+cp $LaunchDir/$i.chk $LaunchDir/E_local_min/
+done
+##################SAVE_LOCAL_MIN#####################
+
+##################SAVE_IMAG#####################
+LaunchDir=$PWD echo $LaunchDir
+rm $LaunchDir/imag 		#update
+mkdir $LaunchDir/imag
+for i in $(cat E_sorted_first_freq_NEGATIVE.txt  | awk '{print $1}')
+do
+cp $LaunchDir/$i.log $LaunchDir/imag/
+cp $LaunchDir/$i.chk $LaunchDir/imag/
+done
+##################SAVE_IMAG#####################
+
+
+
+##################CLEAN#####################
+mv E_sorted_f E_sorted.txt
+#rm Ausschreiben.txt
+rm E_sorted_ 
+rm E_sorted_new
+rm space_enter Ntabelle_out.txt tabelle_out.txt
+
+
+
+#rm E_sorted_first_freq_NEGATIVE.txt 
+#rm E_sorted_local_min
+#rm E_sorted_first_freq_NEGATIVE.txt 
+##################CLEAN#####################
+
+
+
+##################RESULT#####################
+echo "LOCAL_MIN"
+echo "
+Rel. ΔE sorted geometries:
+Filename      ZPE1     δH.1     δG.1      Etot    S_quadrat    1-st freq"
+cat E_sorted_local_min.txt
+echo "
+First Frequency is NEGATIVE"
+echo "Rel. ΔE sorted molecules:
+Filename      ZPE1     δH.1     δG.1      Etot    S_quadrat    1-st freq"
+cat E_sorted_first_freq_NEGATIVE.txt 
+##################RESULT#####################
+
+echo "
+_________________________________________________________________
+* An Energy Difference Criterion of 0.026255 kJ/mol was 
+  used to distinguish between structures.
+
+* E local minima are 
+                      saved  in   ./E_local_min 
+                      and
+                      listed in   E_sorted.txt
+                      
+* Transitional states geometries are 
+                      saved  in    ./imag
+                      and
+                      listed in    E_sorted_local_min.txt
+To cure imaginary frequencies, use therapy script. Example:
+/scr7/vasily/scripts/log_imag2therapy_slurm_schlegel_with_d3_smd
+
+
+* E local minima and transitional states geometries are 
+                      listed together    in E_sorted.txt
+_________________________________________________________________
+                                                     /\_/\      
+Atention! Atention! Atention! Atention! Atention!   ( o.o ) 
+____________________________________________________ > ^ <_______
+
+Geometries in ./E_local_min can still be repeated.            !!!
+To find truly (geometrically) individual local minima, 
+use geometric centroid analysis (germ. ‚Schwerpunkt‘). 
+In the directory with normal terminated (opt+freq) log files,
+fire this:
+/scr7/vasily/scripts/schwerpunkt/schwerpunkt
+
+GOOD LUCK!"
+
+
+#/scr7/vasily/scripts/schwerpunkt/schwerpunkt
+exit
+
+###################EXTRACT_DATA#########################
+#pretabelle_out.txt 	just data
+#tabelle_out.txt		just data H sorted
+#Ntabelle_out.txt	H sorted data with Numebrs
+###################EXTRACT_DATA#########################
+
+###################SORT_BY_ENTHAPLY#########################
+#Ntabelle_out.txt --sorting, find conf-- E_sorted_ #table with numbers
+#					E_sorted.txt  #just table
+###################SORT_BY_ENTHAPLY#########################
+
+##################1-st_FREQ_TEST#####################
+#E_sorted_ --test-- 
+##################1-st_FREQ_TEST#####################

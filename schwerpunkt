@@ -1,0 +1,410 @@
+#!/bin/bash
+
+
+
+LaunchDir=$PWD
+echo $LaunchDir
+
+###################REMOVE_OLD_OUTPUT-FILES#########################
+rm -f to_consider to_remove check_difference E_sorted_local_min_individual_ E_sorted_local_min_individual.txt #update
+###################REMOVE_OLD_OUTPUT-FILES#########################
+
+#ls *.log | tr '.' ' ' | awk '{print $1}' > name
+cat E_sorted_local_min.txt | awk '{print $1}' > name #E sorted NAMES
+
+for iname in $(cat name | awk '{print $1}')
+do
+Anum=`cat "$iname".log |grep -H "Rotational constants (GHZ):   " -B 2 | tail -7 | awk '{print $3}'| head -1`; echo "
+
+Number of atoms in $iname.log is $Anum";
+let b=$(($Anum + 5)); 
+grep -H " Largest concise Abelian subgroup " $iname.log -A $b | tail -$Anum | awk '{print $5,$6,$7,$8}' > $iname.gxyz 
+awk '{ sum += $2 } END { print sum }' $iname.gxyz > $iname.gxyz_sumx 
+
+echo "######################################################"
+echo "######################################################"
+echo "######################################################"
+echo "schwerpunk in "$iname
+
+sumx=`awk '{ sum += $1 } END { print sum }' $iname.gxyz`  
+#echo $sumx
+schwerx=`echo "$sumx / $Anum" | bc -l `;
+#echo $schwerx
+
+sumy=`awk '{ sum += $2 } END { print sum }' $iname.gxyz`  
+#echo $sumy
+schwery=`echo "$sumy / $Anum" | bc -l `;
+#echo $schwery
+
+sumz=`awk '{ sum += $3 } END { print sum }' $iname.gxyz`  
+#echo $sumz
+schwerz=`echo "$sumz / $Anum" | bc -l `;
+#echo $schwerz
+
+#echo $sumx $sumy $sumz > $iname.IDK ######################################################################################
+
+matrix1=(`cat $iname.gxyz`) #Matrix of size 3 by 3
+echo $schwerx $schwery $schwerz
+matrix2=(`echo $schwerx $schwery $schwerz`) #Matrix of size 3 by 3
+
+#atomic_numbers=(`cat $inamename.gxyz_atomic_numbers`)
+#echo $matrix1
+#echo $matrix2
+rows=$Anum
+cols=3
+
+############################
+echo "
+Echo first matrix"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${matrix1[index]} "
+  done
+  echo
+done > echo_delete
+############################
+
+echo "
+Echo second matrix"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    #index=$((i*cols+j))
+    indexo=$((0+j))
+    echo -n "${matrix2[indexo]} "
+  done
+  echo
+done > echo_delete
+############################
+
+
+
+
+k=0
+matrix3=()
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    indexo=$((0+j))
+    aaa=`echo ${matrix1[index]}`
+    bbb=`echo ${matrix2[indexo]}`    
+    matrix3[k]=`echo "a=$aaa; b=$bbb; x=sqrt((a-b)*(a-b)); x"| bc`
+    k=$((k+1))
+  done
+done 
+
+############################
+
+
+echo "
+Echo 3rd matrix"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${matrix3[index]} "
+  done
+  echo
+done > $iname.thirdmartix
+
+############################
+
+for((i=0; i<rows; i++))                 #
+do
+  for((j=0; j<cols; j++))                 #
+  do
+    index=$((i*cols+j))                 #
+    echo -n "${matrix3[index]} "                 #
+  done
+  echo
+done
+done
+
+
+
+
+
+
+
+linenumber=1
+alllines=`wc -l name | awk '{print $1}'`
+
+the_best_iname=`cat name | head -1| awk '{print $1}'`
+
+for iname in $(cat name | awk '{print $1}')
+do
+if [ $(echo "$linenumber < $alllines" | bc) -eq 1 ]; then
+
+echo "
+
+
+comparison № "$linenumber
+linenumber=$((linenumber+1))
+
+echo $iname 
+echo `cat name| head -$linenumber| tail -1`
+next_iname=`cat name| head -$linenumber| tail -1`
+
+this_matrix=(`cat $iname.thirdmartix`) #Matrix 
+next_matrix=(`cat $next_iname.thirdmartix`) #Matrix 
+
+
+echo "
+Echo this XYZ matrix"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${this_matrix[index]} "
+  done
+  echo
+done > echo_delete
+
+echo "
+Echo next XYZ matrix"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${next_matrix[index]} "
+  done
+  echo
+done > echo_delete
+
+
+k=0
+difference_matrix=()
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    aaa=`echo ${this_matrix[index]}`
+    bbb=`echo ${next_matrix[index]}`
+    difference_matrix[k]=`echo "a=$aaa; b=$bbb; x=sqrt((a-b)*(a-b)); x"| bc`
+    k=$((k+1))
+  done
+done 
+
+
+echo "
+Echo difference matrix "
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${difference_matrix[index]} "
+  done
+  echo
+done > echo_delete
+############################
+
+
+
+the_best_matrix=(`cat $the_best_iname.thirdmartix`) 
+
+k=0
+difference_matrix_with_the_best=()
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    aaa=`echo ${the_best_matrix[index]}`
+    bbb=`echo ${next_matrix[index]}`
+    difference_matrix_with_the_best[k]=`echo "a=$aaa; b=$bbb; x=sqrt((a-b)*(a-b)); x"| bc`
+    echo $aaa $bbb $difference_matrix_with_the_best
+    k=$((k+1))
+  done
+done 
+
+
+
+echo "
+Echo difference matrix with the best"
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${difference_matrix_with_the_best[index]} "
+  done
+  echo
+done > $next_iname.ddXYZmatrix
+sumddx=`awk '{ sum += $1 } END { print sum }' $next_iname.ddXYZmatrix`
+sumddy=`awk '{ sum += $2 } END { print sum }' $next_iname.ddXYZmatrix`  
+sumddz=`awk '{ sum += $3 } END { print sum }' $next_iname.ddXYZmatrix`  
+ddXYZ=`echo "$sumddx+$sumddy+$sumddz" | bc -l `;
+echo $ddXYZ > $next_iname.ddXYZ
+############################
+
+
+
+
+
+
+
+echo "
+Save difference_matrix "
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+    echo -n "${difference_matrix[index]} "
+  done
+  echo
+done > $iname.difference_matrix
+
+echo "
+Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ Calc dXYZ"
+sumdx=`awk '{ sum += $1 } END { print sum }' $iname.difference_matrix`  
+sumdy=`awk '{ sum += $2 } END { print sum }' $iname.difference_matrix`  
+sumdz=`awk '{ sum += $3 } END { print sum }' $iname.difference_matrix`  
+dXYZ=`echo "$sumdx+$sumdy+$sumdz" | bc -l `;
+echo $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ $dXYZ
+echo "FOR FOR FOR FOR FOR FOR FOR FOR "
+echo $next_iname $next_iname $next_iname $next_iname $next_iname $next_iname
+echo $next_iname $dXYZ > $next_iname.dXYZ
+a_coord_of_some_atom_with_diff_position=0
+echo "
+diff_position > 0.1 Angström? "
+for((i=0; i<rows; i++))
+do
+  for((j=0; j<cols; j++))
+  do
+    index=$((i*cols+j))
+            if [ $(echo "${difference_matrix[index]} > 0.1" | bc) = 1 ]; then
+            echo "yes"
+            a_coord_of_some_atom_with_diff_position=$((a_coord_of_some_atom_with_diff_position+1))
+            fi;
+
+  done
+done #> firstmatrix
+echo $a_coord_of_some_atom_with_diff_position in $next_iname >> check_difference
+
+if [ $(echo "$a_coord_of_some_atom_with_diff_position > 0" | bc) -eq 1 ]; then
+echo $iname >> to_consider
+else echo $iname >> to_remove
+fi;
+
+
+else echo $iname >> to_consider
+
+fi;
+
+done
+
+echo alllines $alllines
+#if    
+
+rm -f E_sorted_local_min_individual_ #update
+cat E_sorted_local_min.txt |head -1| awk '{print $1}' >> E_sorted_local_min_individual_
+
+alllines2=`wc -l check_difference | awk '{print $1}'`
+kk=0
+for inumber in $(cat check_difference  | awk '{print $1}')
+do
+kk=$((kk+1))
+if [ $(echo "$inumber  > 0" | bc) -eq 1 ]; then
+indiv_str_name=`cat check_difference | head -$kk | tail -1| awk '{print $3}'`
+echo yes $inumber $indiv_str_name 
+echo $indiv_str_name >> E_sorted_local_min_individual_
+else
+echo no $inumber "$indiv_str_name" 
+fi;
+done
+
+
+for i in $(cat E_sorted_local_min_individual_ | awk '{print $1}')
+do
+grep "$i " E_sorted_local_min.txt >> E_sorted_local_min_individual.txt ####grep can make problems. ONLY "$i " !!!!
+cp $LaunchDir/$i.log $LaunchDir/E_local_min_individual/
+done
+
+
+
+
+###ABC###
+#sort -k1 E_sorted_local_min_individual.txt > E_sorted_local_min_individual.txt_ABC
+cat E_sorted_local_min_individual.txt > E_sorted_local_min_individual.txt_
+
+###ABC###
+
+the_best_iname=`cat name | head -1| awk '{print $1}'`
+
+echo "0.0000000" > $the_best_iname.ddXYZ
+
+
+for iname in $(cat name | awk '{print $1}')
+do
+cat $iname.ddXYZ
+done > ddXYZ_E_sorted_local_min_individual
+
+paste E_sorted_local_min_individual.txt_ ddXYZ_E_sorted_local_min_individual > E_sorted_local_min_individual.csv
+
+
+
+rm -r  *dXYZ *ddXYZ *ddXYZ  *difference_matrix *ddXYZmatrix ddXYZ_E_sorted_local_min_individual #echo_delete
+rm -r E_local_min_individual 
+rm -r E_sorted_local_min_individual.txt
+rm -f E_sorted_local_min_individual.txt_
+rm -f *gxyz *gxyz_sumx *thirdmartix check_difference E_sorted_local_min_individual_
+rm -f to_consider to_remove name  #NAME IS e SORTED
+
+
+
+
+#################SAVE FILES#################
+rm -r E_local_min_individual
+mkdir E_local_min_individual
+
+for i in $(cat E_sorted_local_min_individual.csv | awk '{print $1}')
+do
+#grep "$i " E_sorted_local_min.txt >> E_sorted_local_min_individual.txt ####grep can make problems. ONLY "$i " !!!!
+cp $LaunchDir/$i.log $LaunchDir/E_local_min_individual/
+done
+
+#################SAVE FILES#################
+
+
+
+
+
+
+
+
+
+
+
+
+
+echo "
+
+Filename      ZPE1     δH.1     δG.1      Etot    S_quadrat    1-st freq"
+head -5 E_sorted_local_min_individual.csv
+echo ...
+
+echo "
+    _
+   / \__
+  (    @\___
+  /         O     Done!
+ /   (_____/
+/_____/   U
+
+"
+
+/scr7/vasily/scripts/schwerpunkt/schwerpunkt_qh
+#gedit E_sorted_local_min_individual.txt & #E_sorted_local_min_individual_ check_difference &
+exit
