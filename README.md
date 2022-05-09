@@ -1,4 +1,4 @@
-# Energy sorting Script
+# Energy Sorting Script
 
 Energy sorting Script allows you to discard unnecessary Gaussian log-files, possibly containing repeating structures using
 energy criterion (∆Etot > 0.00001 Hartree by default). The Algorithm of ESS includes the following steps
